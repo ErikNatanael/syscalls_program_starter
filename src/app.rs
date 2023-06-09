@@ -1,3 +1,5 @@
+use std::{path::PathBuf, process::Command};
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
@@ -47,60 +49,18 @@ impl eframe::App for TemplateApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         let Self { label, value } = self;
 
-        // Examples of how to create different panels and windows.
-        // Pick whichever suits you.
-        // Tip: a good default choice is to just keep the `CentralPanel`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
-        #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
-            egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    if ui.button("Quit").clicked() {
-                        _frame.close();
-                    }
-                });
-            });
-        });
-
-        egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.heading("Side Panel");
-
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(label);
-            });
-
-            ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                *value += 1.0;
-            }
-
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    ui.label("powered by ");
-                    ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-                    ui.label(" and ");
-                    ui.hyperlink_to(
-                        "eframe",
-                        "https://github.com/emilk/egui/tree/master/crates/eframe",
-                    );
-                    ui.label(".");
-                });
-            });
-        });
-
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
 
-            ui.heading("eframe template");
-            ui.hyperlink("https://github.com/emilk/eframe_template");
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/master/",
-                "Source code."
-            ));
+            let strace_path =
+                "/home/erik/code/kth/rethread/code/syscalls/target/release/strace_collector";
+            let programs = ["gedit", "konqueror", "thunderbird", "htop", "rhythmbox"];
+            for p in programs {
+                if ui.button(p).clicked() {
+                    start_program(strace_path, p);
+                }
+            }
+
             egui::warn_if_debug_build(ui);
         });
 
@@ -111,6 +71,47 @@ impl eframe::App for TemplateApp {
                 ui.label("You can turn on resizing and scrolling if you like.");
                 ui.label("You would normally choose either panels OR windows.");
             });
+        }
+    }
+}
+
+pub fn start_program(strace_path: impl Into<PathBuf>, program: &'static str) {
+    // let mut c = Command::new(strace_path.into());
+    // c.arg("--command");
+    // c.arg(program);
+    let terminal = match std::env::var("TERMINAL") {
+        Ok(term) => term,
+        Err(e) => "gnome-terminal".to_string(),
+    };
+    dbg!(&terminal);
+    // Kill previous instances
+    let mut kill_c = Command::new("sudo");
+    kill_c.arg("pkill");
+    kill_c.arg("-9");
+    kill_c.arg(program);
+    kill_c.output().unwrap();
+    // Start command in new terminal
+    match terminal.as_str() {
+        "urxvt" => {
+            let mut c = Command::new(terminal);
+            c.arg("--hold");
+            c.arg("-e");
+            c.arg("sh");
+            c.arg("-c");
+            c.arg(format!("{:?} --command {program}", strace_path.into()));
+            eprintln!("{:?}", c.spawn());
+        }
+        "xterm" | "gnome-terminal" => {
+            let mut c = Command::new(terminal);
+            c.arg("-e");
+            c.arg(format!("{:?} --command {program}", strace_path.into()));
+            eprintln!("{:?}", c.spawn());
+        }
+        _ => {
+            let mut c = Command::new(terminal);
+            c.arg("-e");
+            c.arg(format!("{:?} --command {program}", strace_path.into()));
+            eprintln!("{:?}", c.spawn());
         }
     }
 }

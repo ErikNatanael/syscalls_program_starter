@@ -1,9 +1,8 @@
 [package]
-name = "eframe_template"
+name = "syscalls_program_starter"
 version = "0.1.0"
-authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+authors = ["Erik Natanael <erik@eriknatanael.com>"]
 edition = "2021"
-rust-version = "1.65"
 
 
 [dependencies]
